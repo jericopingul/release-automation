@@ -29,7 +29,7 @@ cd $RELEASE_PROJECT_DIR
 git checkout $MASTER_BRANCH
 git merge --no-ff $RELEASE_BRANCH
 
-LAST_MASTER_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+LAST_MASTER_TAG=$(git for-each-ref refs/tags --sort=-taggerdate --format='%(refname:lstrip=2)' --count=1)
 echo "Latest tag from master is ${LAST_MASTER_TAG}"
 
 MAJOR_MINOR_INC=$(increment_version ${LAST_MASTER_TAG} "2")

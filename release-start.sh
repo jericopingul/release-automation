@@ -31,7 +31,12 @@ echo "Created new release branch ${NEW_RELEASE_BRANCH} locally from ${DEV_BRANCH
 
 # TODO run python script to create version in Jira
 
-# git log --pretty=oneline master..release/releaseXXXXXX | grep -e '[A-Z]\+-[0-9]\+' -o | sort -u
+# get diff ticket numbers from master to release, sort + unique and comma-separate
+COMMA_SEPARATED_TICKETS=$(git log --pretty=oneline master..${NEW_RELEASE_BRANCH} | grep -e '[A-Z]\+-[0-9]\+' -o | sort -u | xargs | sed -e 's/ /,/g')
+echo $COMMA_SEPARATED_TICKETS
 
 # convert new line list to comma separated
 # cat text.txt | xargs | sed -e 's/ /,/g'
+
+git checkout $DEV_BRANCH
+git branch -D $NEW_RELEASE_BRANCH
