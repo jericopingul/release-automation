@@ -1,10 +1,11 @@
 #!/bin/bash
 
-RELEASE_PROJECT_DIR="/Users/jericopingul/projects/sylon-project/sylon"
+RELEASE_PROJECT_DIR="/path"
 DEV_BRANCH="develop"
 MASTER_BRANCH="master"
 RELASE_DATE_FORMAT="$(date +'%Y%m%d_%H%M')"
 NEW_RELEASE_BRANCH="release/release_${RELASE_DATE_FORMAT}"
+CURRENT_DIR=$(pwd)
 
 echo $NEW_RELEASE_BRANCH
 echo $RELEASE_PROJECT_DIR
@@ -26,17 +27,15 @@ echo $(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
 git checkout -b $NEW_RELEASE_BRANCH $DEV_BRANCH
 echo "Created new release branch ${NEW_RELEASE_BRANCH} locally from ${DEV_BRANCH}"
 
-# git push -u origin $NEW_RELEASE_BRANCH
-# echo "Pushed new release branch ${NEW_RELEASE_BRANCH} to origin"
-
-# TODO run python script to create version in Jira
+git push -u origin $NEW_RELEASE_BRANCH
+echo "Pushed new release branch ${NEW_RELEASE_BRANCH} to origin"
 
 # get diff ticket numbers from master to release, sort + unique and comma-separate
 COMMA_SEPARATED_TICKETS=$(git log --pretty=oneline master..${NEW_RELEASE_BRANCH} | grep -e '[A-Z]\+-[0-9]\+' -o | sort -u | xargs | sed -e 's/ /,/g')
-echo $COMMA_SEPARATED_TICKETS
 
-# convert new line list to comma separated
-# cat text.txt | xargs | sed -e 's/ /,/g'
+# run jira python script - create release + add tickets to release
+echo "Running jira-start.py script to create release and add tickets ${COMMA_SEPARATED_TICKETS} to release"
+cd $CURRENT_DIR
+python3 jira-start.py $COMMA_SEPARATED_TICKETS $NEW_RELEASE_BRANCH
 
-git checkout $DEV_BRANCH
-git branch -D $NEW_RELEASE_BRANCH
+cd $RELEASE_PROJECT_DIR

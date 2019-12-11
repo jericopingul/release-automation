@@ -9,11 +9,11 @@ from functools import reduce
 user = "jerico.pingul@gmail.com"
 # api key generated from JIRA from user
 # https://confluence.atlassian.com/cloud/api-tokens-938839638.html
-apikey = "xxxxx"
+apikey = "xxx"
 # status to transition to - to do | in progress | done ...etc
 transition_status = "to do"
 # server url
-server = "https://xxxx.atlassian.net"
+server = "https://xxx.atlassian.net"
 
 release_name_delimiter_pattern = '_'
 
