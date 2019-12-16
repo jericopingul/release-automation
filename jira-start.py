@@ -2,39 +2,20 @@ import asyncio
 import sys
 import re
 from jira import JIRA
-from functools import reduce
+import yaml
 
 ### Constants ###
-# user email
-user = "jerico.pingul@gmail.com"
-# api key generated from JIRA from user
-# https://confluence.atlassian.com/cloud/api-tokens-938839638.html
-apikey = "xxx"
-# status to transition to - to do | in progress | done ...etc
-transition_status = "to do"
-# server url
-server = "https://xxx.atlassian.net"
-
+config_file = "config.yml"
 release_name_delimiter_pattern = '_'
+delay_time = 0.5
 
-
-def login(user, apikey):
+def login(user, server, apikey):
     options = {"server": server}
     return JIRA(options, basic_auth=(user, apikey))
 
-
-async def set_transition(issue_numbers, transition_name):
-    for issue_number in issue_numbers:
-        issue = jira.issue(issue_number)
-        transition_id = jira.find_transitionid_by_name(issue, transition_name)
-        jira.transition_issue(issue, transition_id)
-    await asyncio.sleep(0.1)
-
-
 async def create_version(jira, name, project_key, description):
     jira.create_version(name, project_key, description)
-    await asyncio.sleep(0.1)
-
+    await asyncio.sleep(delay_time)
 
 async def version_issues(jira, issue_numbers, version):
     for issue_number in issue_numbers:
@@ -43,65 +24,68 @@ async def version_issues(jira, issue_numbers, version):
             print(issue)
             issue.add_field_value("fixVersions", {"name": version})
         except:
-            print("Failed to version issue: " + issue_number)
-    await asyncio.sleep(0.1)
+            print(f'Failed to version issue {issue_number}')
+    await asyncio.sleep(delay_time)
 
-
+def increment_project_release_version(release_name_delimiter_pattern, latest_released_version):
+    release_name_structure = re.split(release_name_delimiter_pattern, latest_released_version)
+    release_last_index = len(release_name_structure) - 1
+    current_version_number = release_name_structure[release_last_index]
+    new_release_version_list = release_name_structure[0: release_last_index]
+    new_release_version_list.append(str(int(current_version_number) + 1).zfill(3))
+    return release_name_delimiter_pattern.join(new_release_version_list)
 
 async def main():
-    jira = login(user, apikey)
+    """
+    Parameters
+    ----------
+    ticket_numbers: str
+        comma-separated ticket numbers
+    version_description: str
+        version description
+    """
+    with open(config_file, 'r') as yml_file:
+        config = yaml.load(yml_file)
+    server = config["server"]
+    user = config["user"]
+    apikey = config["apikey"]
 
+    jira = login(user, server, apikey)
     ticket_numbers_csv = sys.argv[1]
-    new_master_tag = sys.argv[2]
-    print ("arguments: " + ticket_numbers_csv  + " second arg: " + new_master_tag)
+    release_version_description = sys.argv[2]
 
-
-    grouped_tickets = []
     ticket_numbers_list = ticket_numbers_csv.split(',')
     unique_ticket_prefixes = set(map(lambda ticket_number: ticket_number.split('-')[0], ticket_numbers_list))
 
-    for unique_ticket in unique_ticket_prefixes:
-        print (unique_ticket)
-
-    # unique_tickets_dict = reduce(init_unique_tickets_dict, {})
     unique_tickets_dict = { unique_ticket_prefix : [] for unique_ticket_prefix in unique_ticket_prefixes }
 
     for key in unique_tickets_dict:
         for ticket_number in ticket_numbers_list:
             if ticket_number.startswith(key):
                 unique_tickets_dict[key].append(ticket_number)
-        print (key, unique_tickets_dict[key])
-        # TODO create release based on each key
+        print(f'Project is {key} and has the tickets due for release: {unique_tickets_dict[key]}')
 
         project_versions = jira.project_versions(key)
         if len(project_versions) > 1:
-            print(project_versions[len(project_versions) - 1].name )
-            release_name_structure = re.split(release_name_delimiter_pattern, project_versions[len(project_versions) - 1].name)
-            release_last_index = len(release_name_structure) - 1
+            latest_released_version = project_versions[len(project_versions) - 1].name
+            print(f'Current latest released version for project {key} is {latest_released_version}')
+            new_release_version_name = increment_project_release_version(release_name_delimiter_pattern, latest_released_version)
+            print(f'New version name for project {key} will be: {new_release_version_name}')
 
-            current_version_number = release_name_structure[release_last_index]
-
-            new_release_version_list = release_name_structure[0: release_last_index]
-            new_release_version_list.append(str(int(current_version_number)+1))
-
-            new_release_version_name = release_name_delimiter_pattern.join(new_release_version_list)
-            print (new_release_version_name)
             try:
-                # print(0/0)
-                await create_version(jira, new_release_version_name, key, new_master_tag)
+                print(f'Creating version with name {new_release_version_name} in project {key}')
+                await create_version(jira, new_release_version_name, key, release_version_description)
             except:
-                print("Failed to create release version for project: ", key)
+                print(f'Failed to create release version for project: {key}')
 
             await version_issues(jira, unique_tickets_dict[key], new_release_version_name)
 
+            # FIXME for testng only
+            # for ticket in unique_tickets_dict[key]:
+            #     print(f'Versioning fix version {new_release_version_name} to issue {ticket}')
 
-  
-
-  
-
-      
 
 if __name__== "__main__":
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(main())
-  loop.close()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.close()

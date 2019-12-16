@@ -1,0 +1,5 @@
+server: 'https://yoursite.atlassian.net'
+user: 'jerico.pingul@gmail.com'
+# api key generated from JIRA from user
+# https://confluence.atlassian.com/cloud/api-tokens-938839638.html
+apikey: 'xxx'
